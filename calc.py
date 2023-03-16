@@ -8,21 +8,21 @@ from prompt_toolkit import HTML
 
 class InvalidOperator(Exception):
     def __init__(self, operator: str, message: str = "Invalid operator use") -> None:
-        self.operator = operator
-        self.message = message
+        self.operator: str = operator
+        self.message: str = message
         super().__init__(f"{self.message} ({self.operator})")
 
 class SimplificationError(Exception):
     def __init__(self, tokens: list, message: str = "Error occurred while simplifying expression") -> None:
-        self.tokens = tokens
-        self.token_string = '[%s]' % ', '.join(map(str, tokens))
-        self.message = message
+        self.tokens: list = tokens
+        self.token_string: str = '[%s]' % ', '.join(map(str, tokens))
+        self.message: str = message
         super().__init__(f"{self.message}\n{self.token_string}")
 
 class TooManyDecimals(Exception):
     def __init__(self, value: str, message: str = "Too many decimal points") -> None:
-        self.value = value
-        self.message = message
+        self.value: str = value
+        self.message: str = message
         super().__init__(f"{self.message} ({self.value})")
 
 class Calc:
@@ -44,9 +44,11 @@ class Calc:
 
     def calc(self, expr: str) -> float:
         """Perform calculation on an expression"""
+        paren_match: re.Match | None
         # Recursively handle paren grouping
-        if match := Calc.paren.search(expr):
-            sub_expr = match.group()
+        if paren_match := Calc.paren.search(expr):
+            sub_expr: str = paren_match.group()
+            # (9+5)*3 => 14*3   ( replace  (9+5)          with result of 9+5       )
             return self.calc(expr.replace(sub_expr, str(self.calc(sub_expr[1:-1]))))
         
         # Remove whitespace characters
@@ -55,10 +57,12 @@ class Calc:
         # ['', '-', '12', '+', '50', '-', '3', '*', '6']
         # Remove empty tokens
         # ['-', '12', '+', '50', '-', '3', '*', '6']
-        tokens = list(filter(lambda x: x != '', re.split(
+        tokens: list = list(filter(lambda x: x != '', re.split(
             r'([^\d.]{1})', expr.replace(' ', ''))))
 
         try:
+            k: int
+            token: str
             # For each token
             for k, token in enumerate(tokens):
                 # Ends with operator not allowed
@@ -82,12 +86,13 @@ class Calc:
             return self.last_result
 
         try:
+            op: str
             # Go through operators by proper order of operations
             for op in Calc.operations:
                 # While we have a match on this operator
                 while op in tokens:
                     # Token index/position
-                    pos = tokens.index(op)
+                    pos: int = tokens.index(op)
                     # Replace token with result from operation performed on values before and after it
                     tokens[pos] = Calc.operations[tokens[pos]](float(tokens[pos-1]), float(tokens[pos+1]))
                     # Remove value after
