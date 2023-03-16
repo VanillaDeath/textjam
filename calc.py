@@ -37,6 +37,7 @@ class Calc:
     def __init__(self) -> None:
         """Initizalize object"""
         self.last_result: float = 0
+        self.error: bool = False
         self.stale: bool = True
 
     def __enter__(self) -> Calc:
@@ -85,11 +86,7 @@ class Calc:
                 # Prohibit multiple decimal points
                 if token not in Calc.operations and token.count('.') > 1:
                     raise TooManyDecimals(token)
-        except Exception as err:
-            print(HTML(f"<ansired>{err}</ansired>"))
-            return self.last_result
 
-        try:
             op: str
             operation: typing.Callable
             # Go through operators by proper order of operations
@@ -110,8 +107,10 @@ class Calc:
                 raise SimplificationError(tokens)
 
             self.stale = False
+            self.error = False
             return float(tokens[0])
         except Exception as err:
+            self.error = True
             print(HTML(f"<ansired>{err}</ansired>"))
             return self.last_result
 
@@ -125,11 +124,13 @@ class Calc:
                 print(HTML(f'<ansibrightblack>{self.last_result:g}</ansibrightblack>'))
             case _:
                 if not Calc.valid.match(inp):
+                    self.error = True
                     print(HTML("<ansired>Invalid input</ansired>"))
                 else:
                     try:
                         self.last_result = self.calc(inp)
                     except ZeroDivisionError:
+                        self.error = True
                         print(HTML("<ansired>Can't divide by 0</ansired>"))
                 deco = 'ansibrightblack' if self.stale else 'bold'
                 print(HTML(f'<{deco}>{self.last_result:g}</{deco}>'))
@@ -143,6 +144,10 @@ def main(args: list) -> int:
 
         if not calculator.run:
             return 1
+
+        if len(args) > 1:
+            calculator.do(' '.join(args[1:]))
+            return 1 if calculator.error else 0
 
         print("+ add  - subtract  * multiply  / divide  \ foor-divide  % modulus  ^ power  () group")
 
