@@ -7,10 +7,23 @@ from prompt_toolkit import PromptSession
 from prompt_toolkit import HTML
 
 class InvalidOperator(Exception):
-    pass
+    def __init__(self, operator: str, message: str = "Invalid operator use") -> None:
+        self.operator = operator
+        self.message = message
+        super().__init__(f"{self.message} ({self.operator})")
 
 class SimplificationError(Exception):
-    pass
+    def __init__(self, tokens: list, message: str = "Error occurred while simplifying expression") -> None:
+        self.tokens = tokens
+        self.token_string = '[%s]' % ', '.join(map(str, tokens))
+        self.message = message
+        super().__init__(f"{self.message}\n{self.token_string}")
+
+class TooManyDecimals(Exception):
+    def __init__(self, value: str, message: str = "Too many decimal points") -> None:
+        self.value = value
+        self.message = message
+        super().__init__(f"{self.message} ({self.value})")
 
 class Calc:
     valid: re.Pattern = re.compile(r'^[0-9-.()+*/\\% ^]+$')
@@ -50,7 +63,7 @@ class Calc:
             for k, token in enumerate(tokens):
                 # Ends with operator not allowed
                 if token in Calc.operations and k == len(tokens) - 1:
-                    raise InvalidOperator
+                    raise InvalidOperator(token)
                 # Convert negative numbers to negative instead of treating as subtraction
                 # Determined by '-', 'X' at start of expression or immediately following an operator
                 # ['-12', '+', '50', '-', '3', '*', '6']
@@ -60,12 +73,12 @@ class Calc:
                     continue
                 # Start with operator/two consecutive operators not allowed
                 if token in Calc.operations and (k == 0 or tokens[k-1] in Calc.operations):
-                    raise InvalidOperator
+                    raise InvalidOperator(token)
                 # Prohibit multiple decimal points
                 if token not in Calc.operations and token.count('.') > 1:
-                    raise InvalidOperator
-        except InvalidOperator:
-            print("Invalid operator use")
+                    raise TooManyDecimals(token)
+        except Exception as err:
+            print(err)
             return self.last_result
 
         try:
@@ -84,11 +97,11 @@ class Calc:
 
             # If we're not left with a single value after the process, something went wrong
             if len(tokens) != 1:
-                raise SimplificationError
+                raise SimplificationError(tokens)
 
             return float(tokens[0])
-        except SimplificationError:
-            print("Error occurred while simplifying expression")
+        except Exception as err:
+            print(err)
             return self.last_result
 
     def do(self, inp: str) -> None:
