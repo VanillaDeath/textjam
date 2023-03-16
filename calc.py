@@ -2,6 +2,7 @@ from __future__ import annotations
 import sys
 import re
 import operator
+import typing
 from prompt_toolkit import print_formatted_text as print
 from prompt_toolkit import PromptSession
 from prompt_toolkit import HTML
@@ -28,8 +29,8 @@ class TooManyDecimals(Exception):
 class Calc:
     valid: re.Pattern = re.compile(r'^[0-9-.()+*/\\% ^]+$')
     paren: re.Pattern = re.compile(r'\([^\(\)]+\)')
-    operations: dict = {'^': operator.pow, '/': operator.truediv, '\\': operator.floordiv, '%': operator.mod,
-                        '*': operator.mul, '+': operator.add, '-': operator.sub}
+    operations: dict[str, typing.Callable] = {'^': operator.pow, '/': operator.truediv, '\\': operator.floordiv,
+                                       '%': operator.mod, '*': operator.mul, '+': operator.add, '-': operator.sub}
 
     def __init__(self) -> None:
         """Initizalize object"""
@@ -87,14 +88,15 @@ class Calc:
 
         try:
             op: str
+            operation: typing.Callable
             # Go through operators by proper order of operations
-            for op in Calc.operations:
+            for op, operation in Calc.operations.items():
                 # While we have a match on this operator
                 while op in tokens:
                     # Token index/position
                     pos: int = tokens.index(op)
                     # Replace token with result from operation performed on values before and after it
-                    tokens[pos] = Calc.operations[tokens[pos]](float(tokens[pos-1]), float(tokens[pos+1]))
+                    tokens[pos] = operation(float(tokens[pos-1]), float(tokens[pos+1]))
                     # Remove value after
                     tokens.pop(pos+1)
                     # Remove value before
