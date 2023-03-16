@@ -7,12 +7,13 @@ from prompt_toolkit import PromptSession
 from prompt_toolkit import HTML
 
 class Calc:
-    regexp = r'^[0-9-.()+*/\\% ^]+$'
-    regexp_paren = re.compile(r'\([^\(\)]+\)')
-    operations = {'^': operator.pow, '/': operator.truediv, '\\': operator.floordiv, '%': operator.mod,
-                  '*': operator.mul, '+': operator.add, '-': operator.sub}
+    valid: re.Pattern = re.compile(r'^[0-9-.()+*/\\% ^]+$')
+    paren: re.Pattern = re.compile(r'\([^\(\)]+\)')
+    operations: dict = {'^': operator.pow, '/': operator.truediv, '\\': operator.floordiv, '%': operator.mod,
+                        '*': operator.mul, '+': operator.add, '-': operator.sub}
 
     def __init__(self) -> None:
+        """Initizalize object"""
         self.last_result: float = 0
 
     def __enter__(self) -> Calc:
@@ -23,8 +24,9 @@ class Calc:
         pass
 
     def calc(self, expr: str) -> float:
+        """Perform calculation on an expression"""
         # Recursively handle paren grouping
-        if match := Calc.regexp_paren.search(expr):
+        if match := Calc.paren.search(expr):
             sub_expr = match.group()
             return self.calc(expr.replace(sub_expr, str(self.calc(sub_expr[1:-1]))))
         
@@ -79,6 +81,7 @@ class Calc:
         return float(tokens[0])
 
     def do(self, inp: str) -> None:
+        """Parse input"""
         inp = inp.strip().lower()
         match inp:
             case 'exit':
@@ -86,7 +89,7 @@ class Calc:
             case '':
                 print(f'{self.last_result:g}')
             case _:
-                if not re.match(Calc.regexp, inp):
+                if not Calc.valid.match(inp):
                     print("Invalid input")
                 else:
                     try:
@@ -97,6 +100,7 @@ class Calc:
                 
 
 def main(args: list) -> int:
+    """Main routine"""
 
     with Calc() as calculate:
 
@@ -108,7 +112,7 @@ def main(args: list) -> int:
         session: PromptSession = PromptSession()
 
         while calculate.run:
-            inp = session.prompt("> ")
+            inp: str = session.prompt("> ")
             calculate.do(inp)
 
     return 0
