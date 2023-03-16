@@ -27,14 +27,17 @@ class TooManyDecimals(Exception):
         super().__init__(f"{self.message} ({self.value})")
 
 class Calc:
-    valid: re.Pattern = re.compile(r'^[0-9-.()+*/\\% ^]+$')
+    valid: re.Pattern = re.compile(r'^[0-9-.()+*/\\%\s^]+$')
     paren: re.Pattern = re.compile(r'\([^\(\)]+\)')
-    operations: dict[str, typing.Callable] = {'^': operator.pow, '/': operator.truediv, '\\': operator.floordiv,
-                                       '%': operator.mod, '*': operator.mul, '+': operator.add, '-': operator.sub}
+    operations: dict[str, typing.Callable] = {
+        '^': operator.pow, '/': operator.truediv, '\\': operator.floordiv,
+        '%': operator.mod, '*': operator.mul, '+': operator.add, '-': operator.sub
+        }
 
     def __init__(self) -> None:
         """Initizalize object"""
         self.last_result: float = 0
+        self.stale: bool = True
 
     def __enter__(self) -> Calc:
         self.run: bool = True
@@ -59,7 +62,7 @@ class Calc:
         # Remove empty tokens
         # ['-', '12', '+', '50', '-', '3', '*', '6']
         tokens: list = list(filter(lambda x: x != '', re.split(
-            r'([^\d.]{1})', expr.replace(' ', ''))))
+            r'([^\d.]{1})', re.sub(r'\s', r'', expr))))
 
         try:
             k: int
@@ -83,7 +86,7 @@ class Calc:
                 if token not in Calc.operations and token.count('.') > 1:
                     raise TooManyDecimals(token)
         except Exception as err:
-            print(err)
+            print(HTML(f"<ansired>{err}</ansired>"))
             return self.last_result
 
         try:
@@ -106,9 +109,10 @@ class Calc:
             if len(tokens) != 1:
                 raise SimplificationError(tokens)
 
+            self.stale = False
             return float(tokens[0])
         except Exception as err:
-            print(err)
+            print(HTML(f"<ansired>{err}</ansired>"))
             return self.last_result
 
     def do(self, inp: str) -> None:
@@ -118,33 +122,35 @@ class Calc:
             case 'exit':
                 self.run = False
             case '':
-                print(f'{self.last_result:g}')
+                print(HTML(f'<ansibrightblack>{self.last_result:g}</ansibrightblack>'))
             case _:
                 if not Calc.valid.match(inp):
-                    print("Invalid input")
+                    print(HTML("<ansired>Invalid input</ansired>"))
                 else:
                     try:
                         self.last_result = self.calc(inp)
                     except ZeroDivisionError:
-                        print("Can't divide by 0")
-                print(f'{self.last_result:g}')
+                        print(HTML("<ansired>Can't divide by 0</ansired>"))
+                deco = 'ansibrightblack' if self.stale else 'bold'
+                print(HTML(f'<{deco}>{self.last_result:g}</{deco}>'))
+                self.stale = True
                 
 
 def main(args: list) -> int:
     """Main routine"""
 
-    with Calc() as calculate:
+    with Calc() as calculator:
 
-        if not calculate.run:
+        if not calculator.run:
             return 1
 
         print("+ add  - subtract  * multiply  / divide  \ foor-divide  % modulus  ^ power  () group")
 
         session: PromptSession = PromptSession()
 
-        while calculate.run:
+        while calculator.run:
             inp: str = session.prompt("> ")
-            calculate.do(inp)
+            calculator.do(inp)
 
     return 0
 
