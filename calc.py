@@ -11,27 +11,28 @@ class InvalidOperator(Exception):
     def __init__(self, operator: str, message: str = "Invalid operator use") -> None:
         self.operator: str = operator
         self.message: str = message
-        super().__init__(f"{self.message} ({self.operator})")
+        super().__init__(f"{self.message}: {self.operator}")
 
 class SimplificationError(Exception):
     def __init__(self, tokens: list, message: str = "Error occurred while simplifying expression") -> None:
         self.tokens: list = tokens
-        self.token_string: str = '[%s]' % ', '.join(map(str, tokens))
+        self.token_string = '[%s]' % ', '.join(map(str, self.tokens))
         self.message: str = message
-        super().__init__(f"{self.message}\n{self.token_string}")
+        super().__init__(f"{self.message}: {self.token_string}")
 
 class ParenError(Exception):
     def __init__(self, tokens: list, message: str = "Unmatched parenthesis in expression") -> None:
         self.tokens: list = tokens
-        self.token_string: str = ', '.join(map(str, [token for token in self.tokens if token == '(' or token == ')']))
+        self.token_string = ', '.join(
+            map(str, [token for token in self.tokens if token == '(' or token == ')']))
         self.message: str = message
-        super().__init__(f"{self.message}\n{self.token_string}")
+        super().__init__(f"{self.message}: {self.token_string}")
 
 class TooManyDecimals(Exception):
     def __init__(self, value: str, message: str = "Too many decimal points") -> None:
         self.value: str = value
         self.message: str = message
-        super().__init__(f"{self.message} ({self.value})")
+        super().__init__(f"{self.message}: {self.value}")
 
 class Calc:
     valid: re.Pattern = re.compile(r'^[0-9-.()+*/\\%\s^]+$')
@@ -69,56 +70,64 @@ class Calc:
         # ['', '-', '12', '+', '50', '-', '3', '*', '6']
         # Remove empty tokens
         # ['-', '12', '+', '50', '-', '3', '*', '6']
-        tokens: list = list(filter(lambda x: x != '', re.split(
+        tokens: list[str] = list(filter(lambda x: x != '', re.split(
             r'([^\d.]{1})', re.sub(r'\s', r'', expr))))
 
         try:
+            # Convert negative numbers to negative instead of treating as subtraction
+            # ['-12', '+', '50', '-', '3', '*', '6']
             k: int
             token: str
+            tokens2: list[str] = []
             # For each token
             for k, token in enumerate(tokens):
-                # Ends with operator not allowed
-                if token in Calc.operations and k == len(tokens) - 1:
-                    raise InvalidOperator(token)
-                # Convert negative numbers to negative instead of treating as subtraction
-                # Determined by '-', 'X' at start of expression or immediately following an operator
-                # ['-12', '+', '50', '-', '3', '*', '6']
-                if token == '-' and tokens[k+1] not in Calc.operations and (k == 0 or tokens[k-1] in Calc.operations):
-                    tokens[k+1] = token + tokens[k+1]
-                    tokens.pop(k)
+                # Not first token, not an operator (is operand), and follows a '-', at start of expression or after an operator
+                if k > 0 and token not in Calc.operations and tokens[k-1] == '-' and (k == 1 or tokens[k-2] in Calc.operations):
+                    # Undo append of subtracion (pop '-'), append negative value '-X' instead
+                    tokens2.append(tokens2.pop() + token)
                     continue
-                # Start with operator/two consecutive operators not allowed
-                if token in Calc.operations and (k == 0 or tokens[k-1] in Calc.operations):
+                tokens2.append(token)
+
+            # Check for improperly formatted expression
+            for k, token in enumerate(tokens2):
+                # Prohibit starts/ends with operator or two consecutive operators
+                if token in Calc.operations and (k == 0 or k == len(tokens2) - 1 or tokens2[k-1] in Calc.operations):
                     raise InvalidOperator(token)
                 # Prohibit multiple decimal points
                 if token not in Calc.operations and token.count('.') > 1:
                     raise TooManyDecimals(token)
-
+                
             op: str
             operation: typing.Callable
             # Go through operators by proper order of operations
             for op, operation in Calc.operations.items():
                 # While we have a match on this operator
-                while op in tokens:
-                    # Token index/position
-                    pos: int = tokens.index(op)
-                    # Replace token with result from operation performed on values before and after it
-                    tokens[pos] = operation(float(tokens[pos-1]), float(tokens[pos+1]))
+                while op in tokens2:
+                    # Operator index/position
+                    # '3', '*', '6'
+                    pos: int = tokens2.index(op)
+                    # Replace operator with result from operation performed on values before and after it
+                    # '3', '18', '6'
+                    tokens2[pos] = operation(float(tokens2[pos-1]), float(tokens2[pos+1]))
                     # Remove value after
-                    tokens.pop(pos+1)
+                    # '3', '18'
+                    tokens2.pop(pos+1)
                     # Remove value before
-                    tokens.pop(pos-1)
+                    # '18'
+                    tokens2.pop(pos-1)
 
             # If we're not left with a single value after the process, something went wrong
-            if len(tokens) != 1:
-                if '(' in tokens or ')' in tokens:
-                    raise ParenError(tokens)
+            if len(tokens2) != 1:
+                if '(' in tokens2 or ')' in tokens2:
+                    raise ParenError(tokens2)
                 else:
-                    raise SimplificationError(tokens)
+                    raise SimplificationError(tokens2)
 
             self.stale = False
             self.error = False
-            return float(tokens[0])
+
+            return float(tokens2[0])
+        
         except Exception as err:
             self.error = True
             print(HTML(f"<ansired>{err}</ansired>"))
