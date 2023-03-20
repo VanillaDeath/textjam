@@ -20,6 +20,13 @@ class SimplificationError(Exception):
         self.message: str = message
         super().__init__(f"{self.message}\n{self.token_string}")
 
+class ParenError(Exception):
+    def __init__(self, tokens: list, message: str = "Unmatched parenthesis in expression") -> None:
+        self.tokens: list = tokens
+        self.token_string: str = ', '.join(map(str, [token for token in self.tokens if token == '(' or token == ')']))
+        self.message: str = message
+        super().__init__(f"{self.message}\n{self.token_string}")
+
 class TooManyDecimals(Exception):
     def __init__(self, value: str, message: str = "Too many decimal points") -> None:
         self.value: str = value
@@ -104,7 +111,10 @@ class Calc:
 
             # If we're not left with a single value after the process, something went wrong
             if len(tokens) != 1:
-                raise SimplificationError(tokens)
+                if '(' in tokens or ')' in tokens:
+                    raise ParenError(tokens)
+                else:
+                    raise SimplificationError(tokens)
 
             self.stale = False
             self.error = False
@@ -154,8 +164,7 @@ def main(args: list) -> int:
         session: PromptSession = PromptSession()
 
         while calculator.run:
-            inp: str = session.prompt("> ")
-            calculator.do(inp)
+            calculator.do(session.prompt("> "))
 
     return 0
 
