@@ -21,12 +21,10 @@ class SimplificationError(Exception):
         super().__init__(f"{self.message}: {self.token_string}")
 
 class ParenError(Exception):
-    def __init__(self, tokens: list, message: str = "Unmatched parenthesis in expression") -> None:
-        self.tokens: list = tokens
-        self.token_string = ', '.join(
-            map(str, [token for token in self.tokens if token == '(' or token == ')']))
+    def __init__(self, paren: str, message: str = "Unmatched parenthesis in expression") -> None:
+        self.paren: str = paren
         self.message: str = message
-        super().__init__(f"{self.message}: {self.token_string}")
+        super().__init__(f"{self.message}: {self.paren}")
 
 class TooManyDecimals(Exception):
     def __init__(self, value: str, message: str = "Too many decimal points") -> None:
@@ -74,28 +72,36 @@ class Calc:
             r'([^\d.]{1})', re.sub(r'\s', r'', expr))))
 
         try:
-            # Convert negative numbers to negative instead of treating as subtraction
-            # ['-12', '+', '50', '-', '3', '*', '6']
             k: int
             token: str
             tokens2: list[str] = []
-            # For each token
+            # For each token (first pass)
             for k, token in enumerate(tokens):
-                # Not first token, not an operator (is operand), and follows a '-', at start of expression or after an operator
-                if k > 0 and token not in Calc.operations and tokens[k-1] == '-' and (k == 1 or tokens[k-2] in Calc.operations):
-                    # Undo append of subtracion (pop '-'), append negative value '-X' instead
-                    tokens2.append(tokens2.pop() + token)
-                    continue
+                # If not an operator
+                if token not in Calc.operations:
+                    # Prohibit multiple decimal points
+                    if token.count('.') > 1:
+                        raise TooManyDecimals(token)
+                    # Unmatched parens
+                    if token in ('(', ')'):
+                        raise ParenError(token)
+                    # Convert negative numbers to negative instead of treating as subtraction
+                    # ['-12', '+', '50', '-', '3', '*', '6']
+                    # Not first token, and follows a '-', at start of expression or after an operator
+                    if k > 0 and tokens[k-1] == '-' and (k == 1 or tokens[k-2] in Calc.operations):
+                        # Undo append of subtracion (pop '-'), append negative value '-X' instead
+                        tokens2.append(tokens2.pop() + token)
+                        continue
+                # Prohibit ends with operator
+                elif k == len(tokens) - 1:
+                    raise InvalidOperator(token)
                 tokens2.append(token)
 
-            # Check for improperly formatted expression
+            # For each token (second pass), now that we've dealt with negatives
             for k, token in enumerate(tokens2):
-                # Prohibit starts/ends with operator or two consecutive operators
-                if token in Calc.operations and (k == 0 or k == len(tokens2) - 1 or tokens2[k-1] in Calc.operations):
+                # Prohibit starts with operator or two consecutive operators
+                if token in Calc.operations and (k == 0 or tokens2[k-1] in Calc.operations):
                     raise InvalidOperator(token)
-                # Prohibit multiple decimal points
-                if token not in Calc.operations and token.count('.') > 1:
-                    raise TooManyDecimals(token)
                 
             op: str
             operation: typing.Callable
@@ -118,10 +124,7 @@ class Calc:
 
             # If we're not left with a single value after the process, something went wrong
             if len(tokens2) != 1:
-                if '(' in tokens2 or ')' in tokens2:
-                    raise ParenError(tokens2)
-                else:
-                    raise SimplificationError(tokens2)
+                raise SimplificationError(tokens2)
 
             self.stale = False
             self.error = False
@@ -129,6 +132,7 @@ class Calc:
             return float(tokens2[0])
         
         except Exception as err:
+            self.stale = True
             self.error = True
             print(HTML(f"<ansired>{err}</ansired>"))
             return self.last_result
