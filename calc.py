@@ -35,6 +35,10 @@ class TooManyDecimals(Exception):
 class Calc:
     valid: re.Pattern = re.compile(r'^[0-9-.()+*/\\%\s^]+$')
     paren: re.Pattern = re.compile(r'\([^\(\)]+\)')
+    paren_mult: tuple[re.Pattern, ...] = (
+        re.compile(r'(\))(\()'),
+        re.compile(r'([\d.]+)(\()'),
+        re.compile(r'(\))([\d.]+)'))
     operations: dict[str, typing.Callable] = {
         '^': operator.pow, '/': operator.truediv, '\\': operator.floordiv,
         '%': operator.mod, '*': operator.mul, '+': operator.add, '-': operator.sub
@@ -55,13 +59,20 @@ class Calc:
 
     def calc(self, expr: str) -> float:
         """Perform calculation on an expression"""
+
+        # Apply implicit multiply for parens
+        # (X)(Y) => (X)*(Y)   X(Y) => X*(Y)   (X)Y => (X)*Y
+        for p in Calc.paren_mult:
+            expr = p.sub(r'\1*\2', expr)
+
         paren_match: re.Match | None
         # Recursively handle paren grouping
         if paren_match := Calc.paren.search(expr):
             sub_expr: str = paren_match.group()
             # (9+5)*3 => 14*3   ( replace  (9+5)          with result of 9+5       )
             return self.calc(expr.replace(sub_expr, str(self.calc(sub_expr[1:-1]))))
-        
+        #
+
         # Remove whitespace characters
         # '-12+50 - 3 * 6' => '-12+50-3*6'
         # Tokenize
@@ -74,18 +85,18 @@ class Calc:
         try:
             # Prohibit ends with operator
             if tokens[-1] in Calc.operations:
-                raise InvalidOperator(tokens[-1])
+                raise InvalidOperator(tokens[-1], "Must not end with operator")
             k: int
             token: str
             tokens2: list[str] = []
-            # For each token (first pass)
+            # For each token
             for k, token in enumerate(tokens):
                 # If not an operator
                 if token not in Calc.operations:
                     # Prohibit multiple decimal points
                     if token.count('.') > 1:
                         raise TooManyDecimals(token)
-                    # Unmatched parens
+                    # Prohibit unmatched parens
                     if token in ('(', ')'):
                         raise ParenError(token)
                     # Convert negative numbers to negative instead of treating as subtraction
@@ -99,12 +110,13 @@ class Calc:
                 # Prohibit two consecutive operators
                 # if k > 1 and all(t in Calc.operations for t in tokens2[-3:-1]):
                 if k > 1 and tokens2[-2] in Calc.operations and tokens2[-3] in Calc.operations:
-                    raise InvalidOperator(tokens2[-2])
+                    raise InvalidOperator(tokens2[-3] + tokens2[-2], "Too many operators")
 
             # Prohibit starts with operator
             if tokens2[0] in Calc.operations:
-                raise InvalidOperator(tokens2[0])
+                raise InvalidOperator(tokens2[0], "Must not begin with operator")
 
+            # Start simplifying expression
             op: str
             operation: typing.Callable
             # Go through operators by proper order of operations
