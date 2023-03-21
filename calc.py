@@ -16,7 +16,7 @@ class InvalidOperator(Exception):
 class SimplificationError(Exception):
     def __init__(self, tokens: list, message: str = "Error occurred while simplifying expression") -> None:
         self.tokens: list = tokens
-        self.token_string = '[%s]' % ', '.join(map(str, self.tokens))
+        self.token_string: str = '[%s]' % ', '.join(map(str, self.tokens))
         self.message: str = message
         super().__init__(f"{self.message}: {self.token_string}")
 
@@ -72,6 +72,9 @@ class Calc:
             r'([^\d.]{1})', re.sub(r'\s', r'', expr))))
 
         try:
+            # Prohibit ends with operator
+            if tokens[-1] in Calc.operations:
+                raise InvalidOperator(tokens[-1])
             k: int
             token: str
             tokens2: list[str] = []
@@ -89,20 +92,19 @@ class Calc:
                     # ['-12', '+', '50', '-', '3', '*', '6']
                     # Not first token, and follows a '-', at start of expression or after an operator
                     if k > 0 and tokens[k-1] == '-' and (k == 1 or tokens[k-2] in Calc.operations):
-                        # Undo append of subtracion (pop '-'), append negative value '-X' instead
-                        tokens2.append(tokens2.pop() + token)
+                        # Change subtraction to negative number
+                        tokens2[-1] += token
                         continue
-                # Prohibit ends with operator
-                elif k == len(tokens) - 1:
-                    raise InvalidOperator(token)
                 tokens2.append(token)
+                # Prohibit two consecutive operators
+                # if k > 1 and all(t in Calc.operations for t in tokens2[-3:-1]):
+                if k > 1 and tokens2[-2] in Calc.operations and tokens2[-3] in Calc.operations:
+                    raise InvalidOperator(tokens2[-2])
 
-            # For each token (second pass), now that we've dealt with negatives
-            for k, token in enumerate(tokens2):
-                # Prohibit starts with operator or two consecutive operators
-                if token in Calc.operations and (k == 0 or tokens2[k-1] in Calc.operations):
-                    raise InvalidOperator(token)
-                
+            # Prohibit starts with operator
+            if tokens2[0] in Calc.operations:
+                raise InvalidOperator(tokens2[0])
+
             op: str
             operation: typing.Callable
             # Go through operators by proper order of operations
@@ -141,7 +143,7 @@ class Calc:
         """Parse input"""
         inp = inp.strip().lower()
         match inp:
-            case 'exit':
+            case 'exit' | 'quit':
                 self.run = False
             case '':
                 print(HTML(f'<ansibrightblack>{self.last_result:g}</ansibrightblack>'))
