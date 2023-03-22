@@ -40,7 +40,7 @@ class TooManyDecimals(Exception):
 class Calc:
     valid: re.Pattern = re.compile(r'^[0-9-.()+*/\\%\s^]+$')
     paren: re.Pattern = re.compile(r'\([^\(\)]+\)')
-    paren_mult: tuple[re.Pattern, ...] = (
+    paren_cozy: tuple[re.Pattern, ...] = (
         re.compile(r'([\d.\)]+)(\()'),
         re.compile(r'(\))([\d.]+)')
         )
@@ -60,24 +60,24 @@ class Calc:
     def __exit__(self, *a) -> None:
         pass
 
-    def calc(self, expr: str, is_sub_expr: bool = False) -> float | None:
+    def calculate(self, expr: str, is_sub_expr: bool = False) -> float | None:
         """Perform calculation on an expression"""
         try:
             if not is_sub_expr:
                 if not Calc.valid.match(expr):
                     raise InvalidInput()
                 p: re.Pattern
-                # Apply implicit multiply for parens
+                # Apply implicit multiply for cozy parens
                 # (X)(Y) => (X)*(Y)   X(Y) => X*(Y)   (X)Y => (X)*Y
-                for p in Calc.paren_mult:
+                for p in Calc.paren_cozy:
                     expr = p.sub(r'\1*\2', expr)
 
             paren_match: re.Match | None
             # Recursively handle paren grouping
             if paren_match := Calc.paren.search(expr):
                 sub_expr: str = paren_match.group()
-                # (9+5)*3 => 14*3   ( replace  (9+5)          with result of 9+5 )
-                return self.calc(expr.replace(sub_expr, str(self.calc(sub_expr[1:-1], is_sub_expr=True))))
+                # (9+5)*3 => 14*3        ( replace  (9+5)                 with result of 9+5 )
+                return self.calculate(expr.replace(sub_expr, str(self.calculate(sub_expr[1:-1], is_sub_expr=True))))
             #
 
             # Remove whitespace characters
@@ -160,11 +160,13 @@ class Calc:
             case 'exit' | 'quit':
                 self.run = False
                 return False
+            case '':
+                return False
             case _:
                 try:
-                    if (result := self.calc(inp)) is None:
+                    if (result := self.calculate(inp)) is None:
                         return False
-                    print(HTML(f'<bold>{result:g}</bold>'))
+                    print(HTML(f"<bold>{result:g}</bold>"))
                     return True
                 except Exception as err:
                     print(HTML(f"<ansired>{err}</ansired>"))
