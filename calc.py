@@ -51,10 +51,10 @@ class Calc:
 
     def __init__(self) -> None:
         """Initizalize object"""
-        pass
+        self.run: bool = False
 
     def __enter__(self) -> Calc:
-        self.run: bool = True
+        self.run = True
         return self
 
     def __exit__(self, *a) -> None:
@@ -164,6 +164,7 @@ class Calc:
                 return False
             case _:
                 try:
+                    result: float | None
                     if (result := self.calculate(inp)) is None:
                         return False
                     print(HTML(f"<bold>{result:g}</bold>"))
