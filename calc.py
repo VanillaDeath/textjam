@@ -7,6 +7,11 @@ from prompt_toolkit import print_formatted_text as print
 from prompt_toolkit import PromptSession
 from prompt_toolkit import HTML
 
+class InvalidInput(Exception):
+    def __init__(self, message: str = "Input is invalid") -> None:
+        self.message = message
+        super().__init__(self.message)
+
 class InvalidOperator(Exception):
     def __init__(self, operator: str, message: str = "Invalid operator use") -> None:
         self.operator: str = operator
@@ -163,15 +168,13 @@ class Calc:
             case '':
                 print(HTML(f'<ansibrightblack>{self.last_result:g}</ansibrightblack>'))
             case _:
-                if not Calc.valid.match(inp):
+                try:
+                    if not Calc.valid.match(inp):
+                        raise InvalidInput()
+                    self.last_result = self.calc(inp)
+                except Exception as err:
                     self.error = True
-                    print(HTML("<ansired>Invalid input</ansired>"))
-                else:
-                    try:
-                        self.last_result = self.calc(inp)
-                    except ZeroDivisionError:
-                        self.error = True
-                        print(HTML("<ansired>Can't divide by 0</ansired>"))
+                    print(HTML(f"<ansired>{err}</ansired>"))
                 deco = 'ansibrightblack' if self.stale else 'bold'
                 print(HTML(f'<{deco}>{self.last_result:g}</{deco}>'))
                 self.stale = True
