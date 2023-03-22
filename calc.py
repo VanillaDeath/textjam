@@ -36,9 +36,9 @@ class Calc:
     valid: re.Pattern = re.compile(r'^[0-9-.()+*/\\%\s^]+$')
     paren: re.Pattern = re.compile(r'\([^\(\)]+\)')
     paren_mult: tuple[re.Pattern, ...] = (
-        re.compile(r'(\))(\()'),
-        re.compile(r'([\d.]+)(\()'),
-        re.compile(r'(\))([\d.]+)'))
+        re.compile(r'([\d.\)]+)(\()'),
+        re.compile(r'(\))([\d.]+)')
+        )
     operations: dict[str, typing.Callable] = {
         '^': operator.pow, '/': operator.truediv, '\\': operator.floordiv,
         '%': operator.mod, '*': operator.mul, '+': operator.add, '-': operator.sub
@@ -57,20 +57,22 @@ class Calc:
     def __exit__(self, *a) -> None:
         pass
 
-    def calc(self, expr: str) -> float:
+    def calc(self, expr: str, is_sub_expr: bool = False) -> float:
         """Perform calculation on an expression"""
-
-        # Apply implicit multiply for parens
-        # (X)(Y) => (X)*(Y)   X(Y) => X*(Y)   (X)Y => (X)*Y
-        for p in Calc.paren_mult:
-            expr = p.sub(r'\1*\2', expr)
+        
+        if not is_sub_expr:
+            p: re.Pattern
+            # Apply implicit multiply for parens
+            # (X)(Y) => (X)*(Y)   X(Y) => X*(Y)   (X)Y => (X)*Y
+            for p in Calc.paren_mult:
+                expr = p.sub(r'\1*\2', expr)
 
         paren_match: re.Match | None
         # Recursively handle paren grouping
         if paren_match := Calc.paren.search(expr):
             sub_expr: str = paren_match.group()
-            # (9+5)*3 => 14*3   ( replace  (9+5)          with result of 9+5       )
-            return self.calc(expr.replace(sub_expr, str(self.calc(sub_expr[1:-1]))))
+            # (9+5)*3 => 14*3   ( replace  (9+5)          with result of 9+5 )
+            return self.calc(expr.replace(sub_expr, str(self.calc(sub_expr[1:-1], is_sub_expr=True))))
         #
 
         # Remove whitespace characters
@@ -140,8 +142,9 @@ class Calc:
             if len(tokens2) != 1:
                 raise SimplificationError(tokens2)
 
-            self.stale = False
-            self.error = False
+            if not is_sub_expr:
+                self.stale = False
+                self.error = False
 
             return float(tokens2[0])
         
