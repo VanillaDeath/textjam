@@ -64,8 +64,10 @@ class Calc:
 
     def calc(self, expr: str, is_sub_expr: bool = False) -> float:
         """Perform calculation on an expression"""
-        
+
         if not is_sub_expr:
+            if not Calc.valid.match(expr):
+                raise InvalidInput()
             p: re.Pattern
             # Apply implicit multiply for parens
             # (X)(Y) => (X)*(Y)   X(Y) => X*(Y)   (X)Y => (X)*Y
@@ -93,6 +95,7 @@ class Calc:
             # Prohibit ends with operator
             if tokens[-1] in Calc.operations:
                 raise InvalidOperator(tokens[-1], "Must not end with operator")
+
             k: int
             token: str
             tokens2: list[str] = []
@@ -169,8 +172,6 @@ class Calc:
                 print(HTML(f'<ansibrightblack>{self.last_result:g}</ansibrightblack>'))
             case _:
                 try:
-                    if not Calc.valid.match(inp):
-                        raise InvalidInput()
                     self.last_result = self.calc(inp)
                 except Exception as err:
                     self.error = True
