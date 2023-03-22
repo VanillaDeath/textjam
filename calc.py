@@ -64,34 +64,33 @@ class Calc:
 
     def calc(self, expr: str, is_sub_expr: bool = False) -> float:
         """Perform calculation on an expression"""
-
-        if not is_sub_expr:
-            if not Calc.valid.match(expr):
-                raise InvalidInput()
-            p: re.Pattern
-            # Apply implicit multiply for parens
-            # (X)(Y) => (X)*(Y)   X(Y) => X*(Y)   (X)Y => (X)*Y
-            for p in Calc.paren_mult:
-                expr = p.sub(r'\1*\2', expr)
-
-        paren_match: re.Match | None
-        # Recursively handle paren grouping
-        if paren_match := Calc.paren.search(expr):
-            sub_expr: str = paren_match.group()
-            # (9+5)*3 => 14*3   ( replace  (9+5)          with result of 9+5 )
-            return self.calc(expr.replace(sub_expr, str(self.calc(sub_expr[1:-1], is_sub_expr=True))))
-        #
-
-        # Remove whitespace characters
-        # '-12+50 - 3 * 6' => '-12+50-3*6'
-        # Tokenize
-        # ['', '-', '12', '+', '50', '-', '3', '*', '6']
-        # Remove empty tokens
-        # ['-', '12', '+', '50', '-', '3', '*', '6']
-        tokens: list[str] = list(filter(lambda x: x != '', re.split(
-            r'([^\d.]{1})', re.sub(r'\s', r'', expr))))
-
         try:
+            if not is_sub_expr:
+                if not Calc.valid.match(expr):
+                    raise InvalidInput()
+                p: re.Pattern
+                # Apply implicit multiply for parens
+                # (X)(Y) => (X)*(Y)   X(Y) => X*(Y)   (X)Y => (X)*Y
+                for p in Calc.paren_mult:
+                    expr = p.sub(r'\1*\2', expr)
+
+            paren_match: re.Match | None
+            # Recursively handle paren grouping
+            if paren_match := Calc.paren.search(expr):
+                sub_expr: str = paren_match.group()
+                # (9+5)*3 => 14*3   ( replace  (9+5)          with result of 9+5 )
+                return self.calc(expr.replace(sub_expr, str(self.calc(sub_expr[1:-1], is_sub_expr=True))))
+            #
+
+            # Remove whitespace characters
+            # '-12+50 - 3 * 6' => '-12+50-3*6'
+            # Tokenize
+            # ['', '-', '12', '+', '50', '-', '3', '*', '6']
+            # Remove empty tokens
+            # ['-', '12', '+', '50', '-', '3', '*', '6']
+            tokens: list[str] = list(filter(lambda x: x != '', re.split(
+                r'([^\d.]{1})', re.sub(r'\s', r'', expr))))
+
             # Prohibit ends with operator
             if tokens[-1] in Calc.operations:
                 raise InvalidOperator(tokens[-1], "Must not end with operator")
