@@ -51,9 +51,7 @@ class Calc:
 
     def __init__(self) -> None:
         """Initizalize object"""
-        self.last_result: float = 0
-        self.error: bool = False
-        self.stale: bool = True
+        pass
 
     def __enter__(self) -> Calc:
         self.run: bool = True
@@ -62,7 +60,7 @@ class Calc:
     def __exit__(self, *a) -> None:
         pass
 
-    def calc(self, expr: str, is_sub_expr: bool = False) -> float:
+    def calc(self, expr: str, is_sub_expr: bool = False) -> float | None:
         """Perform calculation on an expression"""
         try:
             if not is_sub_expr:
@@ -90,6 +88,7 @@ class Calc:
             # ['-', '12', '+', '50', '-', '3', '*', '6']
             tokens: list[str] = list(filter(lambda x: x != '', re.split(
                 r'([^\d.]{1})', re.sub(r'\s', r'', expr))))
+            tokens2: list[str] = []
 
             # Prohibit ends with operator
             if tokens[-1] in Calc.operations:
@@ -97,7 +96,6 @@ class Calc:
 
             k: int
             token: str
-            tokens2: list[str] = []
             # For each token
             for k, token in enumerate(tokens):
                 # If not an operator
@@ -149,36 +147,28 @@ class Calc:
             if len(tokens2) != 1:
                 raise SimplificationError(tokens2)
 
-            if not is_sub_expr:
-                self.stale = False
-                self.error = False
-
             return float(tokens2[0])
         
         except Exception as err:
-            self.stale = True
-            self.error = True
             print(HTML(f"<ansired>{err}</ansired>"))
-            return self.last_result
+            return None
 
-    def do(self, inp: str) -> None:
+    def do(self, inp: str) -> bool:
         """Parse input"""
         inp = inp.strip().lower()
         match inp:
             case 'exit' | 'quit':
                 self.run = False
-            case '':
-                print(HTML(f'<ansibrightblack>{self.last_result:g}</ansibrightblack>'))
+                return False
             case _:
                 try:
-                    self.last_result = self.calc(inp)
+                    if (result := self.calc(inp)) is None:
+                        return False
+                    print(HTML(f'<bold>{result:g}</bold>'))
+                    return True
                 except Exception as err:
-                    self.error = True
                     print(HTML(f"<ansired>{err}</ansired>"))
-                deco = 'ansibrightblack' if self.stale else 'bold'
-                print(HTML(f'<{deco}>{self.last_result:g}</{deco}>'))
-                self.stale = True
-                
+                    return False
 
 def main(args: list) -> int:
     """Main routine"""
@@ -189,8 +179,7 @@ def main(args: list) -> int:
             return 1
 
         if len(args) > 1:
-            calculator.do(' '.join(args[1:]))
-            return 1 if calculator.error else 0
+            return 0 if calculator.do(' '.join(args[1:])) else 1
 
         print("+ add  - subtract  * multiply  / divide  \ foor-divide  % modulus  ^ power  () group")
 
