@@ -63,7 +63,9 @@ class Calc:
     def calculate(self, expr: str, is_sub_expr: bool = False) -> float | None:
         """Perform calculation on an expression"""
         try:
+            # Only run once
             if not is_sub_expr:
+                # Contains invalid characters
                 if not Calc.valid.match(expr):
                     raise InvalidInput()
                 p: re.Pattern
@@ -77,7 +79,7 @@ class Calc:
             if paren_match := Calc.paren.search(expr):
                 sub_expr: str = paren_match.group()
                 # (9+5)*3 => 14*3        ( replace  (9+5)                 with result of 9+5 )
-                return self.calculate(expr.replace(sub_expr, str(self.calculate(sub_expr[1:-1], is_sub_expr=True))))
+                return self.calculate(expr.replace(sub_expr, str(self.calculate(sub_expr[1:-1], is_sub_expr=True))), is_sub_expr=True)
             #
 
             # Remove whitespace characters
@@ -114,10 +116,21 @@ class Calc:
                         tokens2[-1] += token
                         continue
                 tokens2.append(token)
-                # Prohibit two consecutive operators
-                # if k > 1 and all(t in Calc.operations for t in tokens2[-3:-1]):
-                if k > 1 and tokens2[-2] in Calc.operations and tokens2[-3] in Calc.operations:
-                    raise InvalidOperator(tokens2[-3] + tokens2[-2], "Too many operators")
+                # Check for two consecutive operators
+                if k > 1 and tokens2[-3] in Calc.operations and tokens2[-2] in Calc.operations:
+                    match tokens2[-3] + tokens2[-2]:
+                        # Support python-style power operator
+                        case '**':
+                            tokens2[-3] = '^'
+                            del tokens2[-2]
+                        # Support python-style floor-divide operator
+                        case '//':
+                            tokens2[-3] = '\\'
+                            del tokens2[-2]
+                        # Otherwise prohibit two consecutive operators
+                        case _:
+                            raise InvalidOperator(
+                                tokens2[-3] + tokens2[-2], "Multiple consecutive operators not allowed")
 
             # Prohibit starts with operator
             if tokens2[0] in Calc.operations:
@@ -133,15 +146,15 @@ class Calc:
                     # Operator index/position
                     # '3', '*', '6'
                     pos: int = tokens2.index(op)
-                    # Replace operator with result from operation performed on values before and after it
+                    # Replace operator with result from operation performed on operands before and after it
                     # '3', '18', '6'
                     tokens2[pos] = operation(float(tokens2[pos-1]), float(tokens2[pos+1]))
-                    # Remove value after
+                    # Remove operand after
                     # '3', '18'
-                    tokens2.pop(pos+1)
-                    # Remove value before
+                    del tokens2[pos+1]
+                    # Remove operand before
                     # '18'
-                    tokens2.pop(pos-1)
+                    del tokens2[pos-1]
 
             # If we're not left with a single value after the process, something went wrong
             if len(tokens2) != 1:
@@ -176,6 +189,7 @@ class Calc:
 def main(args: list) -> int:
     """Main routine"""
 
+    calculator: Calc
     with Calc() as calculator:
 
         if not calculator.run:
