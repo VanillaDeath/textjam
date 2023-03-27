@@ -51,10 +51,9 @@ class Calc:
 
     def __init__(self) -> None:
         """Initizalize object"""
-        self.run: bool = False
+        pass
 
     def __enter__(self) -> Calc:
-        self.run = True
         return self
 
     def __exit__(self, *a) -> None:
@@ -161,30 +160,26 @@ class Calc:
                 raise SimplificationError(tokens2)
 
             return float(tokens2[0])
-        
-        except Exception as err:
-            print(HTML(f"<ansired>{err}</ansired>"))
-            return None
 
-    def do(self, inp: str) -> bool:
+        except Exception as err:
+            raise err
+
+    def do(self, inp: str) -> dict:
         """Parse input"""
-        inp = inp.strip().lower()
-        match inp:
+        result: float | None = None
+        error: str | None = None
+        do_exit: bool = False
+        match inp.strip().lower():
             case 'exit' | 'quit':
-                self.run = False
-                return False
+                do_exit = True
             case '':
-                return False
-            case _:
+                pass
+            case _ as expr:
                 try:
-                    result: float | None
-                    if (result := self.calculate(inp)) is None:
-                        return False
-                    print(HTML(f"<bold>{result:g}</bold>"))
-                    return True
+                    result = self.calculate(expr)
                 except Exception as err:
-                    print(HTML(f"<ansired>{err}</ansired>"))
-                    return False
+                    error = str(err)
+        return {'result': result, 'error': error, 'exit': do_exit}
 
 def main(args: list) -> int:
     """Main routine"""
@@ -192,18 +187,28 @@ def main(args: list) -> int:
     calculator: Calc
     with Calc() as calculator:
 
-        if not calculator.run:
-            return 1
+        result: dict
 
         if len(args) > 1:
-            return 0 if calculator.do(' '.join(args[1:])) else 1
+            result = calculator.do(' '.join(args[1:]))
+            if result['error'] is not None:
+                print(HTML(f"<ansired>{result['error']}</ansired>"))
+                return 1
+            print(HTML(f"<bold>{result['result']:g}</bold>"))
+            return 0
 
         print("+ add  - subtract  * multiply  / divide  \ foor-divide  % modulus  ^ power  () group")
 
         session: PromptSession = PromptSession()
 
-        while calculator.run:
-            calculator.do(session.prompt("> "))
+        while result := calculator.do(session.prompt("> ")):
+                if result['exit']:
+                    break
+                if result['error'] is not None:
+                    print(HTML(f"<ansired>{result['error']}</ansired>"))
+                    continue
+                if result['result'] is not None:
+                    print(HTML(f"<bold>{result['result']:g}</bold>"))
 
     return 0
 
