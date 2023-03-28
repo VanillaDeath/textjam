@@ -7,16 +7,19 @@ from prompt_toolkit import print_formatted_text as print
 from prompt_toolkit import PromptSession
 from prompt_toolkit import HTML
 
+
 class InvalidInput(Exception):
     def __init__(self, message: str = "Input is invalid") -> None:
         self.message = message
         super().__init__(self.message)
+
 
 class InvalidOperator(Exception):
     def __init__(self, operator: str, message: str = "Invalid operator use") -> None:
         self.operator: str = operator
         self.message: str = message
         super().__init__(f"{self.message}: {self.operator}")
+
 
 class SimplificationError(Exception):
     def __init__(self, tokens: list, message: str = "Error occurred while simplifying expression") -> None:
@@ -25,11 +28,13 @@ class SimplificationError(Exception):
         self.message: str = message
         super().__init__(f"{self.message}: {self.token_string}")
 
+
 class ParenError(Exception):
     def __init__(self, paren: str, message: str = "Unmatched parenthesis in expression") -> None:
         self.paren: str = paren
         self.message: str = message
         super().__init__(f"{self.message}: {self.paren}")
+
 
 class TooManyDecimals(Exception):
     def __init__(self, value: str, message: str = "Too many decimal points") -> None:
@@ -37,29 +42,29 @@ class TooManyDecimals(Exception):
         self.message: str = message
         super().__init__(f"{self.message}: {self.value}")
 
+
 class Calc:
     valid: re.Pattern = re.compile(r'^[0-9-.()+*/\\%\s^]+$')
     paren: re.Pattern = re.compile(r'\([^\(\)]+\)')
     paren_cozy: tuple[re.Pattern, ...] = (
         re.compile(r'([\d.\)]+)(\()'),
         re.compile(r'(\))([\d.]+)')
-        )
+    )
     operations: dict[str, typing.Callable] = {
         '^': operator.pow, '/': operator.truediv, '\\': operator.floordiv,
         '%': operator.mod, '*': operator.mul, '+': operator.add, '-': operator.sub
-        }
+    }
 
     def __init__(self) -> None:
-        """Initizalize object"""
-        pass
+        return
 
     def __enter__(self) -> Calc:
         return self
 
     def __exit__(self, *a) -> None:
-        pass
+        return
 
-    def calculate(self, expr: str, is_sub_expr: bool = False) -> float | None:
+    def calculate(self, expr: str, is_sub_expr: bool = False) -> float:
         """Perform calculation on an expression"""
         try:
             # Only run once
@@ -93,7 +98,8 @@ class Calc:
 
             # Prohibit ends with operator
             if tokens[-1] in Calc.operations:
-                raise InvalidOperator(tokens[-1], "Must not end with operator")
+                raise InvalidOperator(
+                    tokens[-1], "Must not end with operator" if len(tokens) > 1 else "No operands were supplied")
 
             k: int
             token: str
@@ -133,7 +139,8 @@ class Calc:
 
             # Prohibit starts with operator
             if tokens2[0] in Calc.operations:
-                raise InvalidOperator(tokens2[0], "Must not begin with operator")
+                raise InvalidOperator(
+                    tokens2[0], "Must not begin with operator")
 
             # Start simplifying expression
             op: str
@@ -147,7 +154,8 @@ class Calc:
                     pos: int = tokens2.index(op)
                     # Replace operator with result from operation performed on operands before and after it
                     # '3', '18', '6'
-                    tokens2[pos] = operation(float(tokens2[pos-1]), float(tokens2[pos+1]))
+                    tokens2[pos] = operation(
+                        float(tokens2[pos-1]), float(tokens2[pos+1]))
                     # Remove operand after
                     # '3', '18'
                     del tokens2[pos+1]
@@ -181,6 +189,7 @@ class Calc:
                     error = str(err)
         return {'result': result, 'error': error, 'exit': do_exit}
 
+
 def main(args: list) -> int:
     """Main routine"""
 
@@ -197,20 +206,21 @@ def main(args: list) -> int:
             print(HTML(f"<bold>{result['result']:g}</bold>"))
             return 0
 
-        print("+ add  - subtract  * multiply  / divide  \ foor-divide  % modulus  ^ power  () group")
+        print("+ add  - subtract  * multiply  / divide  \ foor-divide  % modulus  ^ power  ^.5 sqrt  () group")
 
         session: PromptSession = PromptSession()
 
         while result := calculator.do(session.prompt("> ")):
-                if result['exit']:
-                    break
-                if result['error'] is not None:
-                    print(HTML(f"<ansired>{result['error']}</ansired>"))
-                    continue
-                if result['result'] is not None:
-                    print(HTML(f"<bold>{result['result']:g}</bold>"))
+            if result['exit']:
+                break
+            if result['error'] is not None:
+                print(HTML(f"<ansired>{result['error']}</ansired>"))
+                continue
+            if result['result'] is not None:
+                print(HTML(f"<bold>{result['result']:g}</bold>"))
 
     return 0
+
 
 if __name__ == "__main__":
     sys.exit(main(sys.argv))
