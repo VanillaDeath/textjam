@@ -216,11 +216,11 @@ def main(args: list) -> int:
             return 0
 
         print(
-            "+ add  - subtract  * multiply  / divide  \ foor-divide  % modulus  ^ power  ^.5 sqrt  () group\n"
-            "Operations are left associative, for example:\n"
-            " Serial exponentiation: a^b^c = (a^b)^c   add parens to achieve a^(b^c)\n"
-            " Serial division: a/b/c = (a/b)/c         add parens to achieve a/(b/c)\n"
-            " Unary minus sign: -a^b = (-a)^b          add parens to achieve -(a^b)"
+            " + add  - subtract  * multiply  / divide  \ foor-divide  % modulus  ^ power  ^.5 sqrt  () group\n"
+            "Operations follow B·E·DM·AS then are left associative, for example:\n"
+            "· Serial exponentiation: a^b^c = (a^b)^c   add parens to achieve a^(b^c)\n"
+            "· Serial division: a/b/c = (a/b)/c         add parens to achieve a/(b/c)\n"
+            "· Unary minus sign: -a^b = (-a)^b          add parens to achieve -(a^b)"
             )
 
         session: PromptSession = PromptSession()
