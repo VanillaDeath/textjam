@@ -50,10 +50,14 @@ class Calc:
         re.compile(r'([\d.\)]+)(\()'),
         re.compile(r'(\))([\d.]+)')
     )
-    operations: dict[str, typing.Callable] = {
-        '^': operator.pow, '/': operator.truediv, '\\': operator.floordiv,
-        '%': operator.mod, '*': operator.mul, '+': operator.add, '-': operator.sub
-    }
+    operators: tuple[str, ...] = ('^', '/', '\\', '%', '*', '+', '-')
+    # Grouped by order of operations
+    operations: tuple[dict, ...] = (
+        {'^': operator.pow},
+        {'/': operator.truediv, '\\': operator.floordiv,
+            '%': operator.mod, '*': operator.mul},
+        {'+': operator.add, '-': operator.sub}
+    )
 
     def __init__(self) -> None:
         return
@@ -106,7 +110,7 @@ class Calc:
             # For each token
             for k, token in enumerate(tokens):
                 # If not an operator
-                if token not in Calc.operations:
+                if token not in Calc.operators:
                     # Prohibit multiple decimal points
                     if token.count('.') > 1:
                         raise TooManyDecimals(token)
@@ -116,13 +120,13 @@ class Calc:
                     # Convert negative numbers to negative instead of treating as subtraction
                     # ['-12', '+', '50', '-', '3', '*', '6']
                     # Not first token, and follows a '-', at start of expression or after an operator
-                    if k > 0 and tokens[k-1] == '-' and (k == 1 or tokens[k-2] in Calc.operations):
+                    if k > 0 and tokens[k-1] == '-' and (k == 1 or tokens[k-2] in Calc.operators):
                         # Change subtraction to negative number
                         tokens2[-1] += token
                         continue
                 tokens2.append(token)
                 # Check for two consecutive operators
-                if k > 1 and tokens2[-3] in Calc.operations and tokens2[-2] in Calc.operations:
+                if k > 1 and tokens2[-3] in Calc.operators and tokens2[-2] in Calc.operators:
                     match tokens2[-3] + tokens2[-2]:
                         # Support python-style power operator
                         case '**':
@@ -138,32 +142,37 @@ class Calc:
                                 tokens2[-3] + tokens2[-2], "Multiple consecutive operators not allowed")
 
             # Prohibit starts with operator
-            if tokens2[0] in Calc.operations:
+            if tokens2[0] in Calc.operators:
                 raise InvalidOperator(
                     tokens2[0], "Must not begin with operator")
 
-            # Start simplifying expression
-            op: str
-            operation: typing.Callable
-            # Go through operators by proper order of operations
-            for op, operation in Calc.operations.items():
-                # While we have a match on this operator
-                while op in tokens2:
-                    # Operator index/position
-                    # '3', '*', '6'
-                    pos: int = tokens2.index(op)
-                    # Replace operator with result from operation performed on operands before and after it
-                    # '3', '18', '6'
-                    tokens2[pos] = operation(
-                        float(tokens2[pos-1]), float(tokens2[pos+1]))
-                    # Remove operand after
-                    # '3', '18'
-                    del tokens2[pos+1]
-                    # Remove operand before
-                    # '18'
-                    del tokens2[pos-1]
+            # Simplify  [E][DM][AS]
+            for ops in Calc.operations:
+                # Iterator for walking through expression
+                i: int = 1
+                # Current length of expression (adjusted while simplifying)
+                n: int = len(tokens2)
+                while i < n - 1:
+                    token = tokens2[i]
+                    # If current token in current order of operations
+                    if token in ops:
+                        # Replace operator with result from operation performed on operands before and after it
+                        # '3', '*', '6' => '3', '18', '6'
+                        tokens2[i] = ops[token](
+                            float(tokens2[i-1]), float(tokens2[i+1]))
+                        # Remove operand after
+                        # '3', '18'
+                        del tokens2[i+1]
+                        # Remove operand before
+                        # '18'
+                        del tokens2[i-1]
+                        # Expression is two tokens shorter
+                        n -= 2
+                    else:
+                        # Iterate to next operator
+                        i += 2
 
-            # If we're not left with a single value after the process, something went wrong
+            # If we're not left with a single value after simplifying then something went wrong
             if len(tokens2) != 1:
                 raise SimplificationError(tokens2)
 
