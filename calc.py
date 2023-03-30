@@ -52,7 +52,7 @@ class Calc:
     )
     operators: tuple[str, ...] = ('^', '/', '\\', '%', '*', '+', '-')
     # Grouped by order of operations
-    operations: tuple[dict, ...] = (
+    operations: tuple[dict[str, typing.Callable], ...] = (
         {'^': operator.pow},
         {'/': operator.truediv, '\\': operator.floordiv,
             '%': operator.mod, '*': operator.mul},
@@ -101,7 +101,7 @@ class Calc:
             tokens2: list[str] = []
 
             # Prohibit ends with operator
-            if tokens[-1] in Calc.operations:
+            if tokens[-1] in Calc.operators:
                 raise InvalidOperator(
                     tokens[-1], "Must not end with operator" if len(tokens) > 1 else "No operands were supplied")
 
@@ -209,7 +209,7 @@ def main(args: list) -> int:
 
         if len(args) > 1:
             result = calculator.do(' '.join(args[1:]))
-            if result['error'] is not None:
+            if result['error']:
                 print(HTML(f"<ansired>{result['error']}</ansired>"))
                 return 1
             print(HTML(f"<bold>{result['result']:g}</bold>"))
@@ -222,11 +222,8 @@ def main(args: list) -> int:
         while result := calculator.do(session.prompt("> ")):
             if result['exit']:
                 break
-            if result['error'] is not None:
-                print(HTML(f"<ansired>{result['error']}</ansired>"))
-                continue
-            if result['result'] is not None:
-                print(HTML(f"<bold>{result['result']:g}</bold>"))
+            print(HTML(f"<ansired>{result['error']}</ansired>" if result['error']
+                  else f"<bold>{result['result']:g}</bold>"))
 
     return 0
 
