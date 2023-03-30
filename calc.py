@@ -51,7 +51,7 @@ class Calc:
         re.compile(r'(\))([\d.]+)')
     )
     operators: tuple[str, ...] = ('^', '/', '\\', '%', '*', '+', '-')
-    # Grouped by order of operations
+    # Grouped by operator precedence
     operations: tuple[dict[str, typing.Callable], ...] = (
         {'^': operator.pow},
         {'/': operator.truediv, '\\': operator.floordiv,
@@ -126,7 +126,7 @@ class Calc:
                         continue
                 tokens2.append(token)
                 # Check for two consecutive operators
-                if k > 1 and tokens2[-3] in Calc.operators and tokens2[-2] in Calc.operators:
+                if len(tokens2) > 2 and tokens2[-3] in Calc.operators and tokens2[-2] in Calc.operators:
                     match tokens2[-3] + tokens2[-2]:
                         # Support python-style power operator
                         case '**':
@@ -215,7 +215,13 @@ def main(args: list) -> int:
             print(HTML(f"<bold>{result['result']:g}</bold>"))
             return 0
 
-        print("+ add  - subtract  * multiply  / divide  \ foor-divide  % modulus  ^ power  ^.5 sqrt  () group")
+        print(
+            "+ add  - subtract  * multiply  / divide  \ foor-divide  % modulus  ^ power  ^.5 sqrt  () group\n"
+            "Operations are left associative, for example:\n"
+            " Serial exponentiation: a^b^c = (a^b)^c   add parens to achieve a^(b^c)\n"
+            " Serial division: a/b/c = (a/b)/c         add parens to achieve a/(b/c)\n"
+            " Unary minus sign: -a^b = (-a)^b          add parens to achieve -(a^b)"
+            )
 
         session: PromptSession = PromptSession()
 
