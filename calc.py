@@ -146,12 +146,15 @@ class Calc:
                 raise InvalidOperator(
                     tokens2[0], "Must not begin with operator")
 
+            ops: dict[str, typing.Callable]
+            i: int
+            n: int
             # Simplify  [E][DM][AS]
             for ops in Calc.operations:
                 # Iterator for walking through expression
-                i: int = 1
+                i = 1
                 # Current length of expression (adjusted while simplifying)
-                n: int = len(tokens2)
+                n = len(tokens2)
                 while i < n - 1:
                     token = tokens2[i]
                     # If current token in current order of operations
@@ -212,15 +215,15 @@ def main(args: list) -> int:
             if result['error']:
                 print(HTML(f"<ansired>{result['error']}</ansired>"))
                 return 1
-            print(HTML(f"<bold>{result['result']:g}</bold>"))
+            print(f"{result['result']:g}")
             return 0
 
         print(
             " + add  - subtract  * multiply  / divide  \ foor-divide  % modulus  ^ power  ^.5 sqrt  () group\n"
             "Operations follow B·E·DM·AS then are left associative, for example:\n"
             "· Serial exponentiation: a^b^c = (a^b)^c   add parens to achieve a^(b^c)\n"
-            "· Serial division: a/b/c = (a/b)/c         add parens to achieve a/(b/c)\n"
-            "· Unary minus sign: -a^b = (-a)^b          add parens to achieve -(a^b)"
+            "· Serial division:       a/b/c = (a/b)/c   add parens to achieve a/(b/c)\n"
+            "· Unary minus sign:       -a^b = (-a)^b    add parens to achieve -(a^b)"
             )
 
         session: PromptSession = PromptSession()
